@@ -20,22 +20,35 @@ def get_all_properties():
 
 def get_redis_cache_metrics():
     """
-    Retrive Redis cache metrics: hits, misses and hit ratio
+    Retrieve Redis cache metrics: hits, misses, and hit ratio.
+    Logs errors if Redis is unavailable.
     """
-    conn = get_redis_connection("default")
-    info = conn.info("stats") # get Redis stats
+    try:
+        conn = get_redis_connection("default")
+        info = conn.info("stats")  # fetch Redis stats
 
-    hits = info.get("keyspace_hits", 0)
-    misses = info.get("keyspace_misses", 0)
+        hits = info.get("keyspace_hits", 0)
+        misses = info.get("keyspace_misses", 0)
+        total_requests = hits + misses
 
-    total = hits + misses
-    hit_ratio = (hits / total) if total > 0 else 0
+        if total_requests > 0:
+            hit_ratio = hits / total_requests
+        else:
+            hit_ratio = 0.0
 
-    metrics = {
-        "hits": hits,
-        "misses": misses,
-        "hit_ratio": round(hit_ratio, 2)
-    }
+        metrics = {
+            "hits": hits,
+            "misses": misses,
+            "hit_ratio": round(hit_ratio, 2),
+        }
 
-    logger.info(f"Redis Cache Metrics: {metrics}")
-    return metrics
+        logger.info(f"Redis Cache Metrics: {metrics}")
+        return metrics
+
+    except Exception as e:
+        logger.error(f"Error retrieving Redis cache metrics: {e}")
+        return {
+            "hits": 0,
+            "misses": 0,
+            "hit_ratio": 0.0,
+        }
